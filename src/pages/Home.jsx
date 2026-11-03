@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 /**
  * ============================================================================
  * ICONS & SVG GLYPHS (Self-contained, zero-dependency)
@@ -167,6 +167,7 @@ const MOCK_INVESTIGATIONS = [
 ];
 
 export default function Home() {
+const navigate = useNavigate();
   // Operational Mode State: 'standalone' | 'comparative'
   const [activeMode, setActiveMode] = useState('standalone');
 
@@ -187,10 +188,13 @@ export default function Home() {
     const interval = setInterval(() => {
       setAnalysisProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => setIsAnalyzing(false), 600);
-          return 100;
-        }
+          clearInterval(interval);
+          setTimeout(() => {
+            setIsAnalyzing(false);
+            navigate('/workspace'); // <-- ADD THIS LINE HERE
+          }, 600);
+          return 100;
+        }
         return prev + 18;
       });
     }, 250);
