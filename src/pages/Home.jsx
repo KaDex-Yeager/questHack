@@ -181,25 +181,37 @@ const navigate = useNavigate();
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
   // Simulated Submission Handler
-  const handleInitiateForensics = () => {
-    setIsAnalyzing(true);
-    setAnalysisProgress(12);
+  const handleInitiateForensics = async () => {
+   setIsAnalyzing(true);
+    setAnalysisProgress(30);
 
-    const interval = setInterval(() => {
-      setAnalysisProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsAnalyzing(false);
-            navigate('/workspace'); // <-- ADD THIS LINE HERE
-          }, 600);
-          return 100;
-        }
-        return prev + 18;
-      });
-    }, 250);
-  };
+    try {
+      const formData = new FormData();
+      // Appends the actual File object to the payload
+      formData.append("file", standaloneFile.fileObject); 
 
+      const response = await fetch("http://localhost:8000/api/analyze/standalone", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("API Execution Failed");
+
+      const backendResult = await response.json();
+      setAnalysisProgress(100);
+      
+      // Delay slightly for UI smoothness, then pass the real result to Workspace
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        navigate('/workspace', { state: { result: backendResult, originalFile: standaloneFile } });
+      }, 600);
+
+    } catch (error) {
+      console.error(error);
+      alert("Backend processing failed. Ensure your Python server is running on port 8000.");
+      setIsAnalyzing(false);
+    }
+  };
   const isReadyToAnalyze =
     activeMode === 'standalone'
       ? Boolean(standaloneFile?.valid)

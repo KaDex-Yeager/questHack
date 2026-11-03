@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // Add useLocation
+
+  
 
 // ============================================================================
 // SELF-CONTAINED SVG FORENSIC ICON SYSTEM (Zero External Dependencies)
@@ -264,10 +267,40 @@ const FORENSIC_CASES = [
 // ============================================================================
 // MAIN COMPONENT: Workspace.jsx
 // ============================================================================
-export default function Workspace({ onBackToPortal }) {
-  // Active Case State
+export default function Workspace() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { result, originalFile } = location.state || {};
   const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
-  const currentCase = FORENSIC_CASES[selectedCaseIndex];
+
+  if (!result || !originalFile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-950 text-slate-400">
+        <p>Analysis session lost. <button onClick={() => navigate('/')} className="text-cyan-400 underline">Return to Portal</button></p>
+      </div>
+    );
+  }
+ const currentCase = {
+    id: result.case_id || "NEW-SCAN",
+    title: "Live Forensic Analysis",
+    filename: originalFile.name,
+    timestamp: new Date().toISOString(),
+    sha256: "Computed by Backend", 
+    examiner: "Automated System Pipeline",
+    // Map the backend badges to the UI colors
+    verdictState: result.rating_badge === 'MANIPULATED' ? 'RED' : result.rating_badge === 'INCONCLUSIVE' ? 'YELLOW' : 'GREEN',
+    confidenceScore: result.confidence_score,
+    elaMeanError: result.ela_mean_error || 0,
+    elaThreshold: 11.20,
+    prnuMismatch: result.prnu_variance_mismatch || false,
+    prnuSigma: "N/A",
+    exifSoftware: result.software_signature || "None Detected",
+    exifStatus: result.software_signature ? "SOFTWARE TAG DETECTED" : "NO TAG",
+    dctGridState: "N/A",
+    cloneClusters: "N/A",
+    nlgSummary: result.natural_language_summary,
+    findings: [] 
+  };
 
   // Viewer Mode State: 'split' | 'side-by-side' | 'blend' | 'raw-heat'
   const [viewMode, setViewMode] = useState('split');
@@ -299,9 +332,9 @@ export default function Workspace({ onBackToPortal }) {
   const [copiedHash, setCopiedHash] = useState(false);
 
   // Canvas Image Data URLs (Procedurally Generated Synthetic Forensics)
-  const [originalImageUrl, setOriginalImageUrl] = useState(null);
-  const [elaHeatmapUrl, setElaHeatmapUrl] = useState(null);
-  const [isCustomImage, setIsCustomImage] = useState(false);
+  const originalImageUrl = originalFile.previewUrl;
+  const elaHeatmapUrl = result.heatmap_base64 ? `data:image/png;base64,${result.heatmap_base64}` : null;
+  const [isCustomImage, setIsCustomImage] = useState(true);
 
   // DOM Refs
   const stageContainerRef = useRef(null);
@@ -568,11 +601,6 @@ export default function Workspace({ onBackToPortal }) {
     setElaHeatmapUrl(elaCanvas.toDataURL('image/png'));
   }, []);
 
-  useEffect(() => {
-    if (!isCustomImage) {
-      generateForensicCanvases(currentCase);
-    }
-  }, [selectedCaseIndex, isCustomImage, currentCase, generateForensicCanvases]);
 
   // --------------------------------------------------------------------------
   // USER CUSTOM IMAGE UPLOAD WITH REAL-TIME ELA DELTA COMPILATION
@@ -783,14 +811,14 @@ export default function Workspace({ onBackToPortal }) {
       <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-30">
         {/* Left Section: Back to Portal & Case Info */}
         <div className="flex items-center space-x-4">
-          <button
-            onClick={onBackToPortal || (() => alert('Navigating to Global Intelligence Dashboard...'))}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 hover:border-slate-600 transition-all focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            title="Return to primary portal index [ESC]"
-          >
-            <IconChevronLeft className="w-4 h-4 text-cyan-400" />
-            <span>Back to Portal</span>
-          </button>
+         <button
+  onClick={() => navigate('/')} 
+  className="flex items-center space-x-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 hover:border-slate-600 transition-all focus:outline-none focus:ring-1 focus:ring-cyan-500"
+  title="Return to primary portal index [ESC]"
+>
+  <IconChevronLeft className="w-4 h-4 text-cyan-400" />
+  <span>Back to Portal</span>
+</button>
 
           <div className="h-4 w-px bg-slate-800" />
 
@@ -1075,11 +1103,11 @@ export default function Workspace({ onBackToPortal }) {
                 {/* Layer 1 (Bottom/Right): Error Level Analysis (ELA) False-Color Heatmap */}
                 <div className="absolute inset-0 w-full h-full select-none">
                   {elaHeatmapUrl && (
-                    <img
-                      src={elaHeatmapUrl}
-                      alt="Error Level Analysis Heatmap"
-                      className="w-full h-full object-cover pointer-events-none"
-                    />
+                    <img 
+  src={result.heatmap_base64 ? `data:image/png;base64,${result.heatmap_base64}` : originalFile.previewUrl} 
+  alt="Forensic Heatmap" 
+  className="w-full h-full object-contain"
+/>
                   )}
                   {/* Label Pill */}
                   <div className="absolute bottom-3 right-3 bg-slate-950/90 border border-rose-500/50 text-rose-400 font-mono text-[11px] px-2.5 py-1 rounded backdrop-blur z-10 flex items-center space-x-1.5 shadow-lg">
@@ -1165,7 +1193,11 @@ export default function Workspace({ onBackToPortal }) {
                 {/* Left: Original Raster */}
                 <div className="relative border border-slate-800 rounded-lg overflow-hidden bg-slate-900 shadow-xl">
                   {originalImageUrl && (
-                    <img src={originalImageUrl} alt="Source Original" className="w-full h-full object-cover" />
+                   <img 
+  src={originalFile.previewUrl} 
+  alt="Original Asset" 
+  className="w-full h-full object-contain"
+/>
                   )}
                   <div className="absolute top-3 left-3 bg-slate-950/80 border border-slate-700 px-2 py-1 rounded text-cyan-400 font-mono text-xs">
                     ORIGINAL RASTER (RGB)
@@ -1330,12 +1362,12 @@ export default function Workspace({ onBackToPortal }) {
 
               {/* Confidence Score Big Metric Card */}
               <div className="p-4 rounded-lg bg-slate-950 border border-slate-800 shadow-inner space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-slate-400">CONFIDENCE SCORE</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
-                    AGGREGATE HEURISTIC
-                  </span>
-                </div>
+               <div className="flex items-baseline justify-between">
+  <span className="text-3xl font-bold font-mono text-cyan-400">
+    {result.confidence_score}%
+  </span>
+  {/* ... */}
+</div>
 
                 <div className="flex items-baseline justify-between">
                   <div className="flex items-baseline space-x-1.5">
