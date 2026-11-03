@@ -1,9 +1,14 @@
-import './App.css'
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
 
-function App() {
+export default function App() {
   return (
-    <h1>QuestHack App</h1>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        {/* You will add the Workspace route here later */}
+      </Routes>
+    </BrowserRouter>
+  );
 }
-
-export default App  
